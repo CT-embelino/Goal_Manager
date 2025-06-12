@@ -106,23 +106,21 @@ function saveArchivedGoals(arr) {
   localStorage.setItem(ARCHIVED_GOALS_KEY, JSON.stringify(arr));
 }
 
-// Called when a goal is finished to add it to the archive immediately.
+// When a goal finishes, move it to archive immediately.
 function moveFinishedGoalToArchive(goal) {
   let archived = loadArchivedGoals();
-  // Check if already archived (we compare startDate for uniqueness)
+  // Avoid duplicates by checking a unique property (using startDate)
   if (!archived.some(g => g.startDate === goal.startDate)) {
     archived.push(goal);
     saveArchivedGoals(archived);
   }
 }
 
-// Render Main Goals active list: show goals that are not finished,
-// or finished less than 24 hours ago.
 function renderMainGoals() {
   const allGoals = loadMainGoals();
   const now = new Date();
   const dayInMs = 24 * 60 * 60 * 1000;
-  // Show active goals (unfinished OR finished less than a day ago)
+  // Show active goals – those not finished or finished less than 24 hours ago.
   const activeGoals = allGoals.filter(g => {
     return !g.completed || (g.completed && (now - new Date(g.endDate) < dayInMs));
   });
@@ -134,10 +132,10 @@ function renderMainGoals() {
     const mainItem = document.createElement('div');
     mainItem.className = 'main-goal-item' + (goal.completed ? ' completed' : '');
     
-    // Create header with two rows: top row (checkbox, goal name, delete button)
-    // and bottom row (Add Subtask button)
+    // Create header with two rows: top row and bottom row.
     const headerDiv = document.createElement('div');
     
+    // TOP ROW: checkbox, goal text, and delete button.
     const topRow = document.createElement('div');
     topRow.className = 'goal-top';
     
@@ -160,20 +158,49 @@ function renderMainGoals() {
     
     topRow.append(leftDiv, rightDiv);
     
-    // Bottom row for the "Add Subtask" button.
+    // BOTTOM ROW: "Add Subtask" button.
     const bottomRow = document.createElement('div');
     bottomRow.className = 'goal-bottom';
     const addSubtaskBtn = document.createElement('button');
     addSubtaskBtn.textContent = 'Add Subtask';
     addSubtaskBtn.className = 'add-subtask-btn';
-    bottomRow.append(addSubtaskBtn);
+    
+    // Only append and activate the "Add Subtask" button if the goal is not completed.
+    if (!goal.completed) {
+      bottomRow.appendChild(addSubtaskBtn);
+      
+      // Attach event listener for adding a subtask.
+      addSubtaskBtn.addEventListener('click', () => {
+        if (subtaskContainer.querySelector('.subtask-input')) return;
+        const subInput = document.createElement('input');
+        subInput.placeholder = 'Enter subtask';
+        subInput.className = 'subtask-input';
+        const subSubmit = document.createElement('button');
+        subSubmit.textContent = 'Submit';
+        subSubmit.addEventListener('click', () => {
+          const text = subInput.value.trim();
+          if (text) {
+            if (!goal.subtasks) goal.subtasks = [];
+            goal.subtasks.push({ text: text, completed: false });
+            saveMainGoals(allGoals);
+            renderMainGoals();
+          }
+        });
+        subtaskContainer.append(subInput, subSubmit);
+        subInput.focus();
+      });
+    } else {
+      // If the goal is completed, we ensure the add subtask button is not clickable.
+      addSubtaskBtn.disabled = true;
+      addSubtaskBtn.style.display = 'none';
+    }
     
     headerDiv.append(topRow, bottomRow);
     
-    // Subtask container placed beneath the header.
+    // SUBTASK CONTAINER placed under the header.
     const subtaskContainer = document.createElement('div');
     subtaskContainer.className = 'subtask-container';
-
+    
     if (goal.subtasks && goal.subtasks.length > 0) {
       goal.subtasks.forEach((subtask, subIdx) => {
         const subItem = document.createElement('div');
@@ -200,13 +227,15 @@ function renderMainGoals() {
         
         subCheckbox.addEventListener('change', () => {
           subtask.completed = subCheckbox.checked;
-          // If all subtasks are done then auto-complete the main goal.
+          // Auto-complete main goal if all subtasks are done.
           const doneCount = goal.subtasks.filter(s => s.completed).length;
           if (doneCount === goal.subtasks.length && goal.subtasks.length > 0) {
             goal.completed = true;
             goal.endDate = new Date().toISOString();
             checkbox.checked = true;
             checkbox.disabled = true;
+            // Hide the add subtask button if present.
+            addSubtaskBtn.style.display = 'none';
             moveFinishedGoalToArchive(goal);
           }
           saveMainGoals(allGoals);
@@ -220,7 +249,7 @@ function renderMainGoals() {
         });
       });
       
-      // Add progress indicator
+      // Add progress indicator for subtasks.
       const progressIndicator = document.createElement('div');
       progressIndicator.className = 'progress-indicator';
       const doneCount = goal.subtasks.filter(s => s.completed).length;
@@ -230,27 +259,18 @@ function renderMainGoals() {
       subtaskContainer.appendChild(progressIndicator);
     }
     
-    addSubtaskBtn.addEventListener('click', () => {
-      if (subtaskContainer.querySelector('.subtask-input')) return;
-      const subInput = document.createElement('input');
-      subInput.placeholder = 'Enter subtask';
-      subInput.className = 'subtask-input';
-      const subSubmit = document.createElement('button');
-      subSubmit.textContent = 'Submit';
-      subSubmit.addEventListener('click', () => {
-        const text = subInput.value.trim();
-        if (text) {
-          if (!goal.subtasks) goal.subtasks = [];
-          goal.subtasks.push({ text: text, completed: false });
-          saveMainGoals(allGoals);
-          renderMainGoals();
-        }
-      });
-      subtaskContainer.append(subInput, subSubmit);
-      subInput.focus();
-    });
-    
+    // Modified main goal checkbox event:
+    // Allow manual checking only for goals with no subtasks;
+    // if subtasks exist, all must be checked.
     checkbox.addEventListener('change', () => {
+      if (goal.subtasks && goal.subtasks.length > 0) {
+        const allCompleted = goal.subtasks.every(st => st.completed);
+        if (!allCompleted) {
+          checkbox.checked = false;
+          alert("Complete all subtasks before marking this goal as finished.");
+          return;
+        }
+      }
       goal.completed = true;
       goal.endDate = new Date().toISOString();
       moveFinishedGoalToArchive(goal);
@@ -259,9 +279,8 @@ function renderMainGoals() {
     });
     
     deleteBtn.addEventListener('click', () => {
-      // Remove from main goals storage.
-      const unArchived = allGoals.filter((_, i) => i !== idx);
-      saveMainGoals(unArchived);
+      const newGoals = allGoals.filter((_, i) => i !== idx);
+      saveMainGoals(newGoals);
       renderMainGoals();
     });
     
@@ -269,6 +288,7 @@ function renderMainGoals() {
     container.appendChild(mainItem);
   });
 }
+
 
 function addMainGoal() {
   const mainInput = document.getElementById('mainInput');
@@ -307,7 +327,7 @@ function toggleMainAddUI(show) {
 /*========================================================================
   ARCHIVED VIEW FUNCTIONALITY 
 ========================================================================*/
-// Helper: Format ISO date string to "MM - DD - YYYY"
+// Helper: Format ISO date to "MM - DD - YYYY".
 function formatDate(dateStr) {
   const d = new Date(dateStr);
   const month = ('0' + (d.getMonth() + 1)).slice(-2);
@@ -317,7 +337,6 @@ function formatDate(dateStr) {
 }
 
 function showArchived() {
-  // Load all finished main goals from MAIN_GOALS_KEY.
   const allGoals = loadMainGoals();
   const finishedGoals = allGoals.filter(g => g.completed);
   const archivedContainer = document.getElementById('archivedGoalsList');
@@ -327,11 +346,9 @@ function showArchived() {
     div.textContent = `${goal.text} | Started: ${formatDate(goal.startDate)} | Ended: ${formatDate(goal.endDate)}`;
     archivedContainer.appendChild(div);
   });
-  // Compute the percentage of daily goals finished yesterday.
-  // (For now we use a dummy value—replace this logic with real calculations when available.)
+  // Dummy percentage for yesterday's daily goals finished.
   document.getElementById('dailyFinishedPct').textContent =
     'Yesterday Daily Goals Finished: 80%';
-  // Show the overlay with an expand animation.
   const archiveOverlay = document.getElementById('archivedView');
   archiveOverlay.classList.add('show');
 }
