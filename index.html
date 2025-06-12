@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Goal Manager</title>
+  <!-- (Optional: add custom font <link>s here if needed) -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Main Header with Archived Button placed at the top left -->
+    <header class="header">
+      <button id="viewArchivedBtn" class="archived-btn">View Archived</button>
+      <h1>Goal Manager</h1>
+    </header>
+
+    <main class="content">
+      <!-- DAILY GOALS SECTION -->
+      <section id="dailyGoals" class="goal-section">
+        <h2>Daily Goals</h2>
+        <div id="dailyGoalsList" class="goal-list"></div>
+        <div id="dailyAddSection" class="add-section">
+          <button id="showInputDaily">Add</button>
+          <input id="dailyInput" placeholder="Enter a new daily goal" />
+          <button id="submitDaily">Submit</button>
+        </div>
+      </section>
+
+      <!-- MAIN GOALS SECTION -->
+      <section id="mainGoals" class="goal-section">
+        <h2>Main Goals</h2>
+        <div id="mainGoalsList" class="goal-list"></div>
+        <div id="mainAddSection" class="add-section">
+          <button id="showInputMain">Add</button>
+          <input id="mainInput" placeholder="Enter a new main goal" />
+          <button id="submitMain">Submit</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  
+  <!-- Archived View Overlay (hidden by default) -->
+  <div id="archivedView" class="archived-view">
+    <div class="archived-content">
+      <h3>Archived Main Goals</h3>
+      <div id="archivedGoalsList"></div>
+      <div id="dailyFinishedPct"></div>
+      <button id="closeArchivedBtn">Close Archived View</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
