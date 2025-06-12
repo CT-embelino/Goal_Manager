@@ -187,7 +187,6 @@ button {
 .goal-right {
   /* Contains delete button on the right */
 }
-
 .goal-bottom {
   margin-top: calc(var(--gap) * 0.5);
   text-align: left;
